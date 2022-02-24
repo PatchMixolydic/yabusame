@@ -1,0 +1,12 @@
+[workspace]
+members = [
+    "yabusame",
+    "yabuserver",
+    "yabusite",
+    "yabu",
+]
+
+[profile.release]
+lto = true
+panic = 'abort'
+strip = 'symbols'

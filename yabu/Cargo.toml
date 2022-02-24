@@ -1,0 +1,13 @@
+[package]
+name = "yabu"
+version = "0.1.0"
+edition = "2021"
+default-run = "yabu"
+
+[dependencies]
+anyhow = "1.0.55"
+argh = "0.1.7"
+time = "0.3.7"
+tokio = { version = "1.17.0", features = ["full"] }
+tz-rs = "0.5.3"
+yabusame = { path = "../yabusame" }

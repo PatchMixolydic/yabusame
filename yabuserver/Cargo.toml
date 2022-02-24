@@ -1,0 +1,12 @@
+[package]
+name = "yabuserver"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.55"
+argh = "0.1.7"
+serde = "1.0.136"
+serde_json = "1.0.79"
+tokio = { version = "1.17.0", features = ["full"] }
+yabusame = { path = "../yabusame" }
