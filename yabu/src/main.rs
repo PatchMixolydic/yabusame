@@ -17,11 +17,15 @@ use crate::args::Args;
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let args = argh::from_env::<Args>();
-    let host_str = args.server.host_str().ok_or_else(|| anyhow!("fuck"))?;
+    let host_str = args
+        .server
+        .host_str()
+        .ok_or_else(|| anyhow!("server url ({}) does not have a host", args.server))?;
+
     let addr = lookup_host((host_str, args.server.port().unwrap_or(DEFAULT_SERVER_PORT)))
         .await?
         .next()
-        .unwrap();
+        .ok_or_else(|| anyhow!("dns lookup for {} returned no addresses", args.server))?;
 
     let mut socket = TcpSocket::new_v4()?.connect(addr).await?;
     let message = serde_json::to_vec(&Message::New(Task::new(None, false, "foo", 1, None)))?;
