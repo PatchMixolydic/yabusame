@@ -7,6 +7,7 @@ use thiserror::Error;
 use time::PrimitiveDateTime;
 
 pub const DEFAULT_SERVER_PORT: u16 = 11180;
+pub const URL_SCHEME: &str = "yabu";
 
 #[derive(Clone, Debug, Error)]
 pub enum YabuError {
