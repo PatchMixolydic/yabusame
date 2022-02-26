@@ -7,7 +7,7 @@ mod datetime;
 
 use anyhow::anyhow;
 use args::Subcommand;
-use comfy_table::{Attribute, Cell, CellAlignment, Color, Table, presets::NOTHING};
+use comfy_table::{presets::NOTHING, Attribute, Cell, CellAlignment, Color, Table};
 use std::borrow::Cow;
 use time::format_description;
 use tokio::net::{lookup_host, TcpSocket};
@@ -67,6 +67,10 @@ async fn main() -> anyhow::Result<()> {
                 .unwrap()
                 .set_cell_alignment(CellAlignment::Center);
 
+            let date_time_format = format_description::parse(
+                "[year]-[month]-[day] [hour padding:none repr:12]:[minute][period case:lower]",
+            )?;
+
             for task in tasks {
                 let completed = if task.complete { "X" } else { " " };
 
@@ -81,13 +85,7 @@ async fn main() -> anyhow::Result<()> {
                 };
 
                 let due_date: Cow<'static, str> = match task.due_date {
-                    Some(due_date) => {
-                        let format_description = format_description::parse(
-                            "[year]-[month]-[day] [hour padding:none repr:12]:[minute][period case:lower]",
-                        )?;
-
-                        due_date.format(&format_description)?.into()
-                    }
+                    Some(due_date) => due_date.format(&date_time_format)?.into(),
 
                     None => "".into(),
                 };
