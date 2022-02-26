@@ -7,8 +7,11 @@ mod datetime;
 
 use anyhow::anyhow;
 use args::Subcommand;
+use comfy_table::{Attribute, Cell, CellAlignment, Color, Table, presets::NOTHING};
+use std::borrow::Cow;
+use time::format_description;
 use tokio::net::{lookup_host, TcpSocket};
-use yabusame::{Message, Response, Task, DEFAULT_SERVER_PORT};
+use yabusame::{Message, Priority, Response, Task, DEFAULT_SERVER_PORT};
 
 use crate::args::Args;
 
@@ -44,7 +47,68 @@ async fn main() -> anyhow::Result<()> {
 
     match response {
         Response::Nothing => {}
-        Response::Tasks(tasks) => println!("{tasks:?}"),
+        Response::Tasks(tasks) => {
+            let mut table = Table::new();
+            table.load_preset(NOTHING).set_header(vec![
+                "task",
+                "fin",
+                "description",
+                "priority",
+                "due date",
+            ]);
+
+            table
+                .get_column_mut(0)
+                .unwrap()
+                .set_cell_alignment(CellAlignment::Right);
+
+            table
+                .get_column_mut(1)
+                .unwrap()
+                .set_cell_alignment(CellAlignment::Center);
+
+            for task in tasks {
+                let completed = if task.complete { "X" } else { " " };
+
+                let priority = match task.priority {
+                    Priority::Lowest => Cell::new("lowest"),
+                    Priority::Low => Cell::new("low").fg(Color::Blue),
+                    Priority::Medium => Cell::new("medium").fg(Color::DarkMagenta),
+                    Priority::High => Cell::new("high").fg(Color::Yellow),
+                    Priority::Critical => Cell::new("critical")
+                        .fg(Color::Red)
+                        .add_attribute(Attribute::Bold),
+                };
+
+                let due_date: Cow<'static, str> = match task.due_date {
+                    Some(due_date) => {
+                        let format_description = format_description::parse(
+                            "[year]-[month]-[day] [hour padding:none repr:12]:[minute][period case:lower]",
+                        )?;
+
+                        due_date.format(&format_description)?.into()
+                    }
+
+                    None => "".into(),
+                };
+
+                let mut description = Cell::new(&task.description);
+
+                if task.complete {
+                    description = description.add_attribute(Attribute::CrossedOut);
+                }
+
+                table.add_row(vec![
+                    Cell::new(task.id_or_error()?.to_string()),
+                    Cell::new(completed),
+                    description,
+                    priority,
+                    Cell::new(due_date),
+                ]);
+            }
+
+            println!("{table}");
+        }
     }
 
     Ok(())

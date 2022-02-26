@@ -8,6 +8,7 @@ default-run = "yabu"
 [dependencies]
 anyhow = "1.0.55"
 argh = "0.1.7"
+comfy-table = "5.0.1"
 serde = "1.0.136"
 serde_json = "1.0.79"
 time = "0.3.7"
