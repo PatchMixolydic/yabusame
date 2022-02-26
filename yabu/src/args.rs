@@ -135,7 +135,7 @@ pub struct Update {
     #[argh(
         option,
         short = 'd',
-        description = "date by which this task should be completed",
+        description = "date by which this task should be completed (use '-' or 'none' to remove)",
         default = "Default::default()",
         from_str_fn(delta_time_from_str)
     )]
