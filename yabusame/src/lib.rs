@@ -1,19 +1,23 @@
 #![feature(derive_default_enum)]
 
+use num_derive::{FromPrimitive, ToPrimitive};
 use serde::{Deserialize, Serialize};
+use serde_json::Error as SerdeJsonError;
 use std::{
     borrow::Cow,
     fmt::{self, Display, Formatter},
+    io::Error as IoError,
     num::{NonZeroU32, TryFromIntError},
     str::FromStr,
 };
 use thiserror::Error;
 use time::OffsetDateTime;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 pub const DEFAULT_SERVER_PORT: u16 = 11180;
 pub const URL_SCHEME: &str = "yabu";
 
-#[derive(Clone, Debug, Error)]
+#[derive(Debug, Error)]
 pub enum YabuError {
     #[error("task id cannot be 0")]
     TaskIdZero(#[from] TryFromIntError),
@@ -24,6 +28,10 @@ pub enum YabuError {
     // TODO: show available priorities
     #[error("unknown priority {0}")]
     UnknownPriority(String),
+    #[error("io error: {0}")]
+    IoError(#[from] IoError),
+    #[error("error while serializing a value: {0}")]
+    SerializationError(#[from] SerdeJsonError),
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
@@ -44,7 +52,9 @@ impl TryFrom<u32> for TaskId {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(
+    Clone, Copy, Debug, Default, Deserialize, Eq, FromPrimitive, PartialEq, Serialize, ToPrimitive,
+)]
 pub enum Priority {
     Lowest,
     Low,
@@ -58,7 +68,9 @@ impl FromStr for Priority {
     type Err = YabuError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
+        // All match arms are ASCII-only, so this should be fine
+        // (and faster)
+        match s.to_ascii_lowercase().as_str() {
             "lowest" => Ok(Self::Lowest),
             "low" => Ok(Self::Low),
             "medium" => Ok(Self::Medium),
@@ -106,4 +118,72 @@ pub enum Message {
     List,
     Update(TaskId, Task),
     Remove(TaskId),
+}
+
+impl Message {
+    pub async fn read_from_socket<R: AsyncReadExt + Unpin>(
+        mut socket: R,
+    ) -> Result<Self, YabuError> {
+        // read the payload length
+        let mut length_buf = [0u8; 2];
+        socket.read_exact(&mut length_buf).await?;
+        let length = usize::from(u16::from_le_bytes(length_buf));
+
+        // now for the payload
+        let mut buf = vec![0; length];
+        socket.read_exact(&mut buf).await?;
+        Ok(serde_json::from_slice::<Self>(&buf)?)
+    }
+
+    pub async fn write_to_socket<W: AsyncWriteExt + Unpin>(
+        &self,
+        mut socket: W,
+    ) -> Result<(), YabuError> {
+        let buffer = serde_json::to_vec(self)?;
+
+        // first, write out the payload length
+        let length_bytes = u16::try_from(buffer.len())?.to_le_bytes();
+        socket.write_all(&length_bytes).await?;
+
+        // ...then write the payload
+        socket.write_all(&buffer).await?;
+        Ok(())
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub enum Response {
+    Nothing,
+    Tasks(Vec<Task>),
+}
+
+impl Response {
+    pub async fn read_from_socket<R: AsyncReadExt + Unpin>(
+        mut socket: R,
+    ) -> Result<Self, YabuError> {
+        // read the payload length
+        let mut length_buf = [0u8; 2];
+        socket.read_exact(&mut length_buf).await?;
+        let length = usize::from(u16::from_le_bytes(length_buf));
+
+        // now for the payload
+        let mut buf = vec![0; length];
+        socket.read_exact(&mut buf).await?;
+        Ok(serde_json::from_slice::<Self>(&buf)?)
+    }
+
+    pub async fn write_to_socket<W: AsyncWriteExt + Unpin>(
+        &self,
+        mut socket: W,
+    ) -> Result<(), YabuError> {
+        let buffer = serde_json::to_vec(self)?;
+
+        // first, write out the payload length
+        let length_bytes = u16::try_from(buffer.len())?.to_le_bytes();
+        socket.write_all(&length_bytes).await?;
+
+        // ...then write the payload
+        socket.write_all(&buffer).await?;
+        Ok(())
+    }
 }

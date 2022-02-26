@@ -72,6 +72,7 @@ pub struct Args {
 #[argh(subcommand)]
 pub enum Subcommand {
     New(New),
+    List(List),
 }
 
 #[derive(Debug, FromArgs)]
@@ -96,3 +97,7 @@ pub struct New {
     #[argh(positional)]
     pub description: String,
 }
+
+#[derive(Debug, FromArgs)]
+#[argh(subcommand, name = "list", description = "")]
+pub struct List {}

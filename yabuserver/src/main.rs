@@ -1,13 +1,13 @@
 #![allow(unused)]
 #![warn(unused_imports, unused_must_use)]
 
+mod db;
+
 use argh::FromArgs;
+use db::{Database, DEFAULT_DATABASE_URL};
 use std::net::IpAddr;
-use tokio::{
-    io::AsyncReadExt,
-    net::{TcpListener, TcpStream},
-};
-use yabusame::{Message, DEFAULT_SERVER_PORT};
+use tokio::net::{TcpListener, TcpStream};
+use yabusame::{Message, Response, DEFAULT_SERVER_PORT};
 
 /// Foo;
 #[derive(FromArgs)]
@@ -30,18 +30,37 @@ struct Args {
 }
 
 async fn handle_connection(mut socket: TcpStream) -> anyhow::Result<()> {
-    let mut buf = Vec::new();
-    socket.read_to_end(&mut buf).await?;
+    socket.readable().await?;
+    let message = Message::read_from_socket(&mut socket).await?;
+    // TODO: use a database pool instead
+    let database = Database::connect(DEFAULT_DATABASE_URL)?;
 
-    let message = serde_json::from_slice::<Message>(&buf)?;
-    eprintln!("got {:?}", message);
+    let response = match message {
+        Message::New(task) => {
+            database.add_task(task)?;
+            Response::Nothing
+        }
+
+        Message::List => Response::Tasks(database.all_tasks()?),
+
+        Message::Update(id, new_task) => {
+            database.update_task(id, new_task)?;
+            Response::Nothing
+        }
+
+        Message::Remove(id) => {
+            database.remove_task(id)?;
+            Response::Nothing
+        }
+    };
+
+    response.write_to_socket(&mut socket).await?;
     Ok(())
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let args = argh::from_env::<Args>();
-
     let listener = TcpListener::bind((args.listen_address, args.port)).await?;
 
     loop {

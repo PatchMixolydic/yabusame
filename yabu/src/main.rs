@@ -7,11 +7,8 @@ mod datetime;
 
 use anyhow::anyhow;
 use args::Subcommand;
-use tokio::{
-    io::AsyncWriteExt,
-    net::{lookup_host, TcpSocket},
-};
-use yabusame::{Message, Task, DEFAULT_SERVER_PORT};
+use tokio::net::{lookup_host, TcpSocket};
+use yabusame::{Message, Response, Task, DEFAULT_SERVER_PORT};
 
 use crate::args::Args;
 
@@ -31,15 +28,24 @@ async fn main() -> anyhow::Result<()> {
     let mut socket = TcpSocket::new_v4()?.connect(addr).await?;
 
     let message = match args.subcommand {
-        Subcommand::New(new_args) => serde_json::to_vec(&Message::New(Task::new(
+        Subcommand::New(new_args) => Message::New(Task::new(
             None,
             false,
             new_args.description,
             new_args.priority,
             new_args.due_date,
-        )))?,
+        )),
+
+        Subcommand::List(_) => Message::List,
     };
 
-    socket.write_all(&message).await?;
+    message.write_to_socket(&mut socket).await?;
+    let response = Response::read_from_socket(&mut socket).await?;
+
+    match response {
+        Response::Nothing => {}
+        Response::Tasks(tasks) => println!("{tasks:?}"),
+    }
+
     Ok(())
 }
