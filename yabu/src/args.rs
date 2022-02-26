@@ -1,9 +1,10 @@
 use argh::FromArgs;
+use time::OffsetDateTime;
 use std::fmt::Debug;
 use url::Url;
-use yabusame::{DEFAULT_SERVER_PORT, URL_SCHEME};
+use yabusame::{Priority, DEFAULT_SERVER_PORT, URL_SCHEME};
 
-use crate::datetime::DateTime;
+use crate::datetime::offset_date_time_from_str;
 
 fn default_server() -> Url {
     Url::parse(&format!("{URL_SCHEME}://127.0.0.1:{DEFAULT_SERVER_PORT}"))
@@ -76,15 +77,21 @@ pub enum Subcommand {
 #[derive(Debug, FromArgs)]
 #[argh(subcommand, name = "new", description = "")]
 pub struct New {
-    #[argh(option, short = 'p', description = "priority for this task")]
-    pub priority: Option<u8>,
+    #[argh(
+        option,
+        short = 'p',
+        description = "priority for this task",
+        default = "Default::default()"
+    )]
+    pub priority: Priority,
 
     #[argh(
         option,
         short = 'd',
-        description = "date by which this task should be completed"
+        description = "date by which this task should be completed",
+        from_str_fn(offset_date_time_from_str)
     )]
-    pub due_date: Option<DateTime>,
+    pub due_date: Option<OffsetDateTime>,
 
     #[argh(positional)]
     pub description: String,

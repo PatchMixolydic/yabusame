@@ -1,42 +1,18 @@
-use std::{
-    fmt::{self, Debug, Formatter},
-    str::FromStr,
-};
-use time::{format_description, Date, Time};
+use time::{format_description, Date, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset};
 use tz::TimeZone;
 
-pub fn time_zone_to_str(time_zone: &TimeZone) -> &str {
-    time_zone
-        .find_current_local_time_type()
-        .map(|local| local.time_zone_designation())
-        .unwrap_or("???")
-}
 
-pub struct DateTime {
-    date: Date,
-    time: Option<Time>,
-    time_zone: TimeZone,
-}
-
-impl Debug for DateTime {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), fmt::Error> {
-        // `TimeZone`'s `Debug` representation is outrageously long
-        f.debug_struct("DateTime")
-            .field("date", &self.date)
-            .field("time", &self.time)
-            .field("time_zone", &time_zone_to_str(&self.time_zone))
-            .finish()
-    }
-}
-
-impl FromStr for DateTime {
-    type Err = anyhow::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+pub fn offset_date_time_from_str(s: &str) -> Result<OffsetDateTime, String> {
+    // TODO: currently, this just treats events with unspecified times as
+    // occuring at midnight UTC; the server should probably decide how to
+    // handle this instead
+ 
+    let result: anyhow::Result<_> = try {
         // TODO: `time`'s parsing is truly arcane; doing this manually be
         // more flexible
         let date_fmt = format_description::parse("[year]-[month]-[day]")?;
-        let time_fmt = format_description::parse("[hour padding:none]:[minute][period case_sensitive:false]")?;
+        let time_fmt =
+            format_description::parse("[hour padding:none]:[minute][period case_sensitive:false]")?;
 
         let (date_str, maybe_time_str) = s
             .find(char::is_whitespace)
@@ -50,12 +26,20 @@ impl FromStr for DateTime {
         let date = Date::parse(date_str, &date_fmt)?;
         let time = maybe_time_str
             .map(|time_str| Time::parse(time_str, &time_fmt))
-            .transpose()?;
+            .transpose()?
+            .unwrap_or(Time::MIDNIGHT);
 
-        Ok(Self {
-            date,
-            time,
-            time_zone: TimeZone::local()?,
-        })
-    }
+        // Due to CVE-2020-26235, we can't just use `OffsetDateTime::now_local`.
+        // The vulnerability is dodged by using `tz-rs`, which does not call
+        // `localtime_r`.
+        let offset = UtcOffset::from_whole_seconds(
+            TimeZone::local()?
+                .find_current_local_time_type()?
+                .ut_offset(),
+        )?;
+
+        PrimitiveDateTime::new(date, time).assume_offset(offset)
+    };
+
+    result.map_err(|err| err.to_string())
 }

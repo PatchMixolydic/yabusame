@@ -1,10 +1,14 @@
+#![feature(derive_default_enum)]
+
 use serde::{Deserialize, Serialize};
 use std::{
     borrow::Cow,
-    num::{NonZeroU32, TryFromIntError}, fmt::{Display, Formatter, self},
+    fmt::{self, Display, Formatter},
+    num::{NonZeroU32, TryFromIntError},
+    str::FromStr,
 };
 use thiserror::Error;
-use time::PrimitiveDateTime;
+use time::{OffsetDateTime};
 
 pub const DEFAULT_SERVER_PORT: u16 = 11180;
 pub const URL_SCHEME: &str = "yabu";
@@ -17,6 +21,9 @@ pub enum YabuError {
     TaskHasNoId,
     #[error("task {0} does not exist")]
     TaskDoesntExist(TaskId),
+    // TODO: show available priorities
+    #[error("unknown priority {0}")]
+    UnknownPriority(String),
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
@@ -37,13 +44,38 @@ impl TryFrom<u32> for TaskId {
     }
 }
 
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+pub enum Priority {
+    Lowest,
+    Low,
+    #[default]
+    Medium,
+    High,
+    Critical,
+}
+
+impl FromStr for Priority {
+    type Err = YabuError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "lowest" => Ok(Self::Lowest),
+            "low" => Ok(Self::Low),
+            "medium" => Ok(Self::Medium),
+            "high" => Ok(Self::High),
+            "critical" => Ok(Self::Critical),
+            _ => Err(YabuError::UnknownPriority(s.to_string())),
+        }
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Task {
     pub id: Option<TaskId>,
     pub complete: bool,
     pub description: Cow<'static, str>,
-    pub priority: u8,
-    pub due_date: Option<PrimitiveDateTime>,
+    pub priority: Priority,
+    pub due_date: Option<OffsetDateTime>,
 }
 
 impl Task {
@@ -51,8 +83,8 @@ impl Task {
         id: Option<TaskId>,
         complete: bool,
         description: S,
-        priority: u8,
-        due_date: Option<PrimitiveDateTime>,
+        priority: Priority,
+        due_date: Option<OffsetDateTime>,
     ) -> Self {
         Self {
             id,

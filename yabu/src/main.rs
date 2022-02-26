@@ -6,6 +6,7 @@ mod args;
 mod datetime;
 
 use anyhow::anyhow;
+use args::Subcommand;
 use tokio::{
     io::AsyncWriteExt,
     net::{lookup_host, TcpSocket},
@@ -28,7 +29,17 @@ async fn main() -> anyhow::Result<()> {
         .ok_or_else(|| anyhow!("dns lookup for {} returned no addresses", args.server))?;
 
     let mut socket = TcpSocket::new_v4()?.connect(addr).await?;
-    let message = serde_json::to_vec(&Message::New(Task::new(None, false, "foo", 1, None)))?;
+
+    let message = match args.subcommand {
+        Subcommand::New(new_args) => serde_json::to_vec(&Message::New(Task::new(
+            None,
+            false,
+            new_args.description,
+            new_args.priority,
+            new_args.due_date,
+        )))?,
+    };
+
     socket.write_all(&message).await?;
     Ok(())
 }
