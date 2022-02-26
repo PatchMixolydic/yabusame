@@ -11,7 +11,7 @@ use comfy_table::{presets::NOTHING, Attribute, Cell, CellAlignment, Color, Table
 use std::borrow::Cow;
 use time::format_description;
 use tokio::net::{lookup_host, TcpSocket};
-use yabusame::{Message, Priority, Response, Task, TaskDelta, DEFAULT_SERVER_PORT, Delta};
+use yabusame::{Delta, Message, Priority, Response, Task, TaskDelta, DEFAULT_SERVER_PORT};
 
 use crate::args::Args;
 
@@ -54,6 +54,8 @@ async fn main() -> anyhow::Result<()> {
                 due_date: update_args.due_date,
             },
         ),
+
+        Subcommand::Remove(remove_args) => Message::Remove(remove_args.task_id),
     };
 
     message.write_to_socket(&mut socket).await?;

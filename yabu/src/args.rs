@@ -82,6 +82,7 @@ pub enum Subcommand {
     New(New),
     List(List),
     Update(Update),
+    Remove(Remove),
 }
 
 #[derive(Debug, FromArgs)]
@@ -150,6 +151,13 @@ pub struct Update {
     )]
     pub description: Delta<String>,
 
+    #[argh(positional)]
+    pub task_id: TaskId,
+}
+
+#[derive(Debug, FromArgs)]
+#[argh(subcommand, name = "remove", description = "")]
+pub struct Remove {
     #[argh(positional)]
     pub task_id: TaskId,
 }
