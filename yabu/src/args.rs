@@ -79,15 +79,15 @@ pub struct Args {
 #[derive(Debug, FromArgs)]
 #[argh(subcommand)]
 pub enum Subcommand {
-    New(New),
+    Add(Add),
     List(List),
     Update(Update),
     Remove(Remove),
 }
 
 #[derive(Debug, FromArgs)]
-#[argh(subcommand, name = "new", description = "")]
-pub struct New {
+#[argh(subcommand, name = "add", description = "")]
+pub struct Add {
     #[argh(
         option,
         short = 'p',

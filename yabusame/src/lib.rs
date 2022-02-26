@@ -166,7 +166,7 @@ pub struct TaskDelta {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum Message {
-    New(Task),
+    Add(Task),
     List,
     Update(TaskId, TaskDelta),
     Remove(TaskId),

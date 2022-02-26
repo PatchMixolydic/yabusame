@@ -31,7 +31,7 @@ async fn main() -> anyhow::Result<()> {
     let mut socket = TcpSocket::new_v4()?.connect(addr).await?;
 
     let message = match args.subcommand {
-        Subcommand::New(new_args) => Message::New(Task::new(
+        Subcommand::Add(new_args) => Message::Add(Task::new(
             None,
             false,
             new_args.description,
@@ -66,7 +66,7 @@ async fn main() -> anyhow::Result<()> {
 
         Response::Tasks(tasks) => {
             if tasks.is_empty() {
-                println!("you have no tasks; use `yabu new [description]` to add one");
+                println!("you have no tasks; use `yabu add [description]` to add one");
                 return Ok(());
             }
 

@@ -36,7 +36,7 @@ async fn handle_connection(mut socket: TcpStream) -> anyhow::Result<()> {
     let database = Database::connect(DEFAULT_DATABASE_URL)?;
 
     let response = match message {
-        Message::New(task) => {
+        Message::Add(task) => {
             database.add_task(task)?;
             Response::Nothing
         }
