@@ -7,7 +7,8 @@ use std::{
     borrow::Cow,
     fmt::{self, Display, Formatter},
     io::Error as IoError,
-    num::{NonZeroU32, TryFromIntError},
+    mem,
+    num::{NonZeroU32, ParseIntError, TryFromIntError},
     str::FromStr,
 };
 use thiserror::Error;
@@ -25,13 +26,20 @@ pub enum YabuError {
     TaskHasNoId,
     #[error("task {0} does not exist")]
     TaskDoesntExist(TaskId),
-    // TODO: show available priorities
     #[error("unknown priority {0}")]
     UnknownPriority(String),
-    #[error("io error: {0}")]
+    #[error("io error")]
     IoError(#[from] IoError),
-    #[error("error while serializing a value: {0}")]
+    #[error("error while serializing a value")]
     SerializationError(#[from] SerdeJsonError),
+}
+
+#[derive(Clone, Debug, Deserialize, Error, Serialize)]
+pub enum YabuRpcError {
+    #[error("task {0} does not exist")]
+    TaskDoesntExist(TaskId),
+    #[error("unknown priority {0}")]
+    UnknownPriority(String),
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
@@ -41,6 +49,14 @@ pub struct TaskId(pub NonZeroU32);
 impl Display for TaskId {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), fmt::Error> {
         self.0.fmt(f)
+    }
+}
+
+impl FromStr for TaskId {
+    type Err = ParseIntError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self(NonZeroU32::from_str(s)?))
     }
 }
 
@@ -110,13 +126,49 @@ impl Task {
     pub fn id_or_error(&self) -> Result<TaskId, YabuError> {
         self.id.ok_or(YabuError::TaskHasNoId)
     }
+
+    pub fn apply_delta(&mut self, delta: TaskDelta) {
+        // trying to use `self.description` directly fails borrowcheck
+        let mut description = Cow::Borrowed("");
+        mem::swap(&mut self.description, &mut description);
+
+        self.complete = delta.complete.apply_to(self.complete);
+        self.description = delta.description.apply_to(description);
+        self.priority = delta.priority.apply_to(self.priority);
+        self.due_date = delta.due_date.apply_to(self.due_date);
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize)]
+pub enum Delta<T> {
+    #[default]
+    Unchanged,
+    Changed(T),
+}
+
+impl<T> Delta<T> {
+    #[must_use = "this returns the new value without changing the original"]
+    pub fn apply_to(self, old: T) -> T {
+        match self {
+            Delta::Unchanged => old,
+            Delta::Changed(new) => new,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+pub struct TaskDelta {
+    pub complete: Delta<bool>,
+    pub description: Delta<Cow<'static, str>>,
+    pub priority: Delta<Priority>,
+    pub due_date: Delta<Option<OffsetDateTime>>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum Message {
     New(Task),
     List,
-    Update(TaskId, Task),
+    Update(TaskId, TaskDelta),
     Remove(TaskId),
 }
 
@@ -155,6 +207,7 @@ impl Message {
 pub enum Response {
     Nothing,
     Tasks(Vec<Task>),
+    Error(YabuRpcError),
 }
 
 impl Response {

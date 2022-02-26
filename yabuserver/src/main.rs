@@ -42,11 +42,7 @@ async fn handle_connection(mut socket: TcpStream) -> anyhow::Result<()> {
         }
 
         Message::List => Response::Tasks(database.all_tasks()?),
-
-        Message::Update(id, new_task) => {
-            database.update_task(id, new_task)?;
-            Response::Nothing
-        }
+        Message::Update(id, new_task) => database.update_task(id, new_task)?,
 
         Message::Remove(id) => {
             database.remove_task(id)?;

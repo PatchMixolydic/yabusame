@@ -1,10 +1,10 @@
-use argh::FromArgs;
+use argh::{FromArgValue, FromArgs};
 use std::fmt::Debug;
 use time::OffsetDateTime;
 use url::Url;
-use yabusame::{Priority, DEFAULT_SERVER_PORT, URL_SCHEME};
+use yabusame::{Delta, Priority, TaskId, DEFAULT_SERVER_PORT, URL_SCHEME};
 
-use crate::datetime::offset_date_time_from_str;
+use crate::datetime::{delta_time_from_str, offset_date_time_from_str};
 
 fn default_server() -> Url {
     Url::parse(&format!("{URL_SCHEME}://127.0.0.1:{DEFAULT_SERVER_PORT}"))
@@ -52,6 +52,14 @@ fn url_from_str(s: &str) -> Result<Url, String> {
     }
 }
 
+fn delta_from_str<T: FromArgValue>(s: &str) -> Result<Delta<T>, String> {
+    if s.is_empty() {
+        Ok(Delta::Unchanged)
+    } else {
+        Ok(Delta::Changed(T::from_arg_value(s)?))
+    }
+}
+
 /// Foo;
 #[derive(Debug, FromArgs)]
 pub struct Args {
@@ -73,6 +81,7 @@ pub struct Args {
 pub enum Subcommand {
     New(New),
     List(List),
+    Update(Update),
 }
 
 #[derive(Debug, FromArgs)]
@@ -101,3 +110,46 @@ pub struct New {
 #[derive(Debug, FromArgs)]
 #[argh(subcommand, name = "list", description = "")]
 pub struct List {}
+
+#[derive(Debug, FromArgs)]
+#[argh(subcommand, name = "update", description = "")]
+pub struct Update {
+    #[argh(
+        option,
+        short = 'c',
+        description = "is the task finished?",
+        default = "Default::default()",
+        from_str_fn(delta_from_str)
+    )]
+    pub completed: Delta<bool>,
+
+    #[argh(
+        option,
+        short = 'p',
+        description = "priority for this task",
+        default = "Default::default()",
+        from_str_fn(delta_from_str)
+    )]
+    pub priority: Delta<Priority>,
+
+    #[argh(
+        option,
+        short = 'd',
+        description = "date by which this task should be completed",
+        default = "Default::default()",
+        from_str_fn(delta_time_from_str)
+    )]
+    pub due_date: Delta<Option<OffsetDateTime>>,
+
+    #[argh(
+        option,
+        short = 'i',
+        description = "information about this task",
+        default = "Default::default()",
+        from_str_fn(delta_from_str)
+    )]
+    pub description: Delta<String>,
+
+    #[argh(positional)]
+    pub task_id: TaskId,
+}

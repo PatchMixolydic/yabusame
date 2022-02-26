@@ -1,8 +1,8 @@
 use anyhow::anyhow;
 use num_traits::{FromPrimitive, ToPrimitive};
-use rusqlite::{params, Connection};
+use rusqlite::{params, Connection, Row};
 use time::OffsetDateTime;
-use yabusame::{Priority, Task, TaskId};
+use yabusame::{Priority, Response, Task, TaskDelta, TaskId, YabuRpcError};
 
 pub const DEFAULT_DATABASE_URL: &str = "yabuserver.db";
 
@@ -29,29 +29,6 @@ impl Database {
         Ok(Self { connection })
     }
 
-    pub fn all_tasks(&self) -> anyhow::Result<Vec<Task>> {
-        let mut res = Vec::new();
-        let mut statement = self.connection.prepare("SELECT * FROM tasks")?;
-        let mut rows = statement.query([])?;
-
-        while let Some(row) = rows.next()? {
-            let priority = row.get(3)?;
-
-            res.push(Task::new(
-                Some(row.get::<_, u32>(0)?.try_into()?),
-                row.get::<_, bool>(1)?,
-                row.get::<_, String>(2)?,
-                Priority::from_u32(priority)
-                    .ok_or_else(|| anyhow!("can't convert {} to a `Priority`", priority))?,
-                row.get::<_, Option<i64>>(4)?
-                    .map(OffsetDateTime::from_unix_timestamp)
-                    .transpose()?,
-            ));
-        }
-
-        Ok(res)
-    }
-
     pub fn add_task(&self, task: Task) -> anyhow::Result<()> {
         self.connection.execute(
             "INSERT INTO tasks (complete, description, priority, due_date) VALUES (?1, ?2, ?3, ?4)",
@@ -66,26 +43,74 @@ impl Database {
         Ok(())
     }
 
-    pub fn update_task(&self, task_id: TaskId, new_task: Task) -> anyhow::Result<()> {
+    fn task_from_row(&self, row: &Row) -> anyhow::Result<Task> {
+        let priority = row.get(3)?;
+
+        Ok(Task::new(
+            Some(row.get::<_, u32>(0)?.try_into()?),
+            row.get::<_, bool>(1)?,
+            row.get::<_, String>(2)?,
+            Priority::from_u32(priority)
+                .ok_or_else(|| anyhow!("can't convert {} to a `Priority`", priority))?,
+            row.get::<_, Option<i64>>(4)?
+                .map(OffsetDateTime::from_unix_timestamp)
+                .transpose()?,
+        ))
+    }
+
+    pub fn all_tasks(&self) -> anyhow::Result<Vec<Task>> {
+        let mut res = Vec::new();
+        let mut statement = self.connection.prepare("SELECT * FROM tasks")?;
+        let mut rows = statement.query([])?;
+
+        while let Some(row) = rows.next()? {
+            res.push(self.task_from_row(row)?);
+        }
+
+        Ok(res)
+    }
+
+    fn get_task(&self, task_id: TaskId) -> anyhow::Result<Option<Task>> {
+        let mut statement = self
+            .connection
+            .prepare("SELECT * FROM tasks WHERE task_id = ?1")?;
+        let mut rows = statement.query(params![task_id.0.get()])?;
+
+        match rows.next()? {
+            Some(row) => Ok(Some(self.task_from_row(row)?)),
+            None => todo!(),
+        }
+    }
+
+    pub fn update_task(&self, task_id: TaskId, task_delta: TaskDelta) -> anyhow::Result<Response> {
+        let mut task = match self.get_task(task_id)? {
+            Some(task) => task,
+            None => return Ok(Response::Error(YabuRpcError::TaskDoesntExist(task_id))),
+        };
+
+        task.apply_delta(task_delta);
+
         self.connection.execute(
             "UPDATE tasks
-            SET (complete = ?1, description = ?2, priority = ?3, due_date = ?4)
+            SET complete = ?1, description = ?2, priority = ?3, due_date = ?4
             WHERE task_id = ?5",
             params![
-                new_task.complete,
-                new_task.description,
-                new_task.priority.to_u32(),
-                new_task.due_date.map(|due_date| due_date.unix_timestamp()),
+                task.complete,
+                task.description,
+                task.priority.to_u32(),
+                task.due_date.map(|due_date| due_date.unix_timestamp()),
                 task_id.0.get(),
             ],
         )?;
 
-        Ok(())
+        Ok(Response::Nothing)
     }
 
     pub fn remove_task(&self, task_id: TaskId) -> anyhow::Result<()> {
-        self.connection
-            .execute("DELETE FROM tasks WHERE id=?1", params![task_id.0.get()])?;
+        self.connection.execute(
+            "DELETE FROM tasks WHERE task_id = ?1",
+            params![task_id.0.get()],
+        )?;
         Ok(())
     }
 }

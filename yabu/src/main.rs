@@ -11,7 +11,7 @@ use comfy_table::{presets::NOTHING, Attribute, Cell, CellAlignment, Color, Table
 use std::borrow::Cow;
 use time::format_description;
 use tokio::net::{lookup_host, TcpSocket};
-use yabusame::{Message, Priority, Response, Task, DEFAULT_SERVER_PORT};
+use yabusame::{Message, Priority, Response, Task, TaskDelta, DEFAULT_SERVER_PORT, Delta};
 
 use crate::args::Args;
 
@@ -40,6 +40,20 @@ async fn main() -> anyhow::Result<()> {
         )),
 
         Subcommand::List(_) => Message::List,
+
+        Subcommand::Update(update_args) => Message::Update(
+            update_args.task_id,
+            TaskDelta {
+                complete: update_args.completed,
+                // why doesn't `Cow<'static, str>: FromStr`?
+                description: match update_args.description {
+                    Delta::Unchanged => Delta::Unchanged,
+                    Delta::Changed(s) => Delta::Changed(s.into()),
+                },
+                priority: update_args.priority,
+                due_date: update_args.due_date,
+            },
+        ),
     };
 
     message.write_to_socket(&mut socket).await?;
@@ -47,6 +61,7 @@ async fn main() -> anyhow::Result<()> {
 
     match response {
         Response::Nothing => {}
+
         Response::Tasks(tasks) => {
             let mut table = Table::new();
             table.load_preset(NOTHING).set_header(vec![
@@ -86,7 +101,6 @@ async fn main() -> anyhow::Result<()> {
 
                 let due_date: Cow<'static, str> = match task.due_date {
                     Some(due_date) => due_date.format(&date_time_format)?.into(),
-
                     None => "".into(),
                 };
 
@@ -107,6 +121,8 @@ async fn main() -> anyhow::Result<()> {
 
             println!("{table}");
         }
+
+        Response::Error(err) => return Err(err.into()),
     }
 
     Ok(())

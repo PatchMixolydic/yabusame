@@ -1,5 +1,6 @@
 use time::{format_description, Date, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset};
 use tz::TimeZone;
+use yabusame::Delta;
 
 pub fn offset_date_time_from_str(s: &str) -> Result<OffsetDateTime, String> {
     // TODO: currently, this just treats events with unspecified times as
@@ -41,4 +42,12 @@ pub fn offset_date_time_from_str(s: &str) -> Result<OffsetDateTime, String> {
     };
 
     result.map_err(|err| err.to_string())
+}
+
+pub fn delta_time_from_str(s: &str) -> Result<Delta<Option<OffsetDateTime>>, String> {
+    if s == "-" || s.to_ascii_lowercase() == "none" {
+        Ok(Delta::Changed(None))
+    } else {
+        Ok(Delta::Changed(Some(offset_date_time_from_str(s)?)))
+    }
 }
