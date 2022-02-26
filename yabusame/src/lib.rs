@@ -8,7 +8,7 @@ use std::{
     str::FromStr,
 };
 use thiserror::Error;
-use time::{OffsetDateTime};
+use time::OffsetDateTime;
 
 pub const DEFAULT_SERVER_PORT: u16 = 11180;
 pub const URL_SCHEME: &str = "yabu";

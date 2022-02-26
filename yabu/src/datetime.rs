@@ -1,12 +1,11 @@
 use time::{format_description, Date, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset};
 use tz::TimeZone;
 
-
 pub fn offset_date_time_from_str(s: &str) -> Result<OffsetDateTime, String> {
     // TODO: currently, this just treats events with unspecified times as
     // occuring at midnight UTC; the server should probably decide how to
     // handle this instead
- 
+
     let result: anyhow::Result<_> = try {
         // TODO: `time`'s parsing is truly arcane; doing this manually be
         // more flexible

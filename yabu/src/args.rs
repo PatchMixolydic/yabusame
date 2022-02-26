@@ -1,6 +1,6 @@
 use argh::FromArgs;
-use time::OffsetDateTime;
 use std::fmt::Debug;
+use time::OffsetDateTime;
 use url::Url;
 use yabusame::{Priority, DEFAULT_SERVER_PORT, URL_SCHEME};
 
