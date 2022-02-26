@@ -65,6 +65,11 @@ async fn main() -> anyhow::Result<()> {
         Response::Nothing => {}
 
         Response::Tasks(tasks) => {
+            if tasks.is_empty() {
+                println!("you have no tasks; use `yabu new [description]` to add one");
+                return Ok(());
+            }
+
             let mut table = Table::new();
             table.load_preset(NOTHING).set_header(vec![
                 "task",
