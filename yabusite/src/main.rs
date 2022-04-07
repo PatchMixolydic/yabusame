@@ -12,8 +12,13 @@ use axum::{
     Router, Server,
 };
 use axum_macros::debug_handler;
+use deadpool::unmanaged;
 use serde::Serialize;
-use std::{net::SocketAddr, sync::Arc};
+use std::{
+    net::{IpAddr, SocketAddr},
+    sync::Arc,
+    thread::available_parallelism,
+};
 use tera::Tera;
 use tera_helpers::axum_render;
 use tokio::{sync::RwLock, task};
@@ -25,6 +30,8 @@ use yabusame::{
 };
 
 use crate::tera_helpers::{date_time, tera_watcher};
+
+const DEFAULT_YABUSITE_PORT: u16 = 8000;
 
 // The working directory is the workspace root in debug mode and
 // the executable directory in release mode
@@ -62,14 +69,15 @@ struct IndexTemplate {
 }
 
 #[debug_handler]
-async fn index(tera: Extension<Arc<RwLock<Tera>>>) -> Result<Html<String>, StatusCode> {
+async fn index(
+    tera: Extension<Arc<RwLock<Tera>>>,
+    connection_pool: Extension<unmanaged::Pool<ClientConnection>>,
+) -> Result<Html<String>, StatusCode> {
     // TODO: hack? need to manually intervene to swap
     // `anyhow::Error` for `StatusCode::INTERNAL_SERVER_ERROR`
     let result: anyhow::Result<Html<String>> = try {
         // TODO: should be a connection pool instead
-        let mut connection = ClientConnection::new(&"yabu://127.0.0.1:11180".parse()?)
-            .await
-            .unwrap();
+        let mut connection = connection_pool.get().await?;
 
         let tasks = match connection.send(Message::List).await? {
             // `yabusame::Response` is qualified to avoid confusion with `http::Response`
@@ -82,7 +90,11 @@ async fn index(tera: Extension<Arc<RwLock<Tera>>>) -> Result<Html<String>, Statu
     };
 
     result.map_err(|err| {
-        eprintln!("error while rendering index.html: {err}");
+        eprintln!("error while rendering index.html:");
+        for err in err.chain() {
+            eprintln!("    {err}");
+        }
+
         StatusCode::INTERNAL_SERVER_ERROR
     })
 }
@@ -97,12 +109,37 @@ pub struct Args {
         default = "default_server()",
         from_str_fn(url_from_str)
     )]
-    pub server: Url,
+    pub server_url: Url,
+
+    #[argh(
+        option,
+        short = 'a',
+        description = "address to listen on",
+        default = "[0, 0, 0, 0].into()"
+    )]
+    listen_address: IpAddr,
+
+    #[argh(
+        option,
+        short = 'p',
+        description = "port to serve on",
+        default = "DEFAULT_YABUSITE_PORT"
+    )]
+    port: u16,
 }
 
 #[tokio::main]
 async fn main() {
-    let addr = SocketAddr::from(([127, 0, 0, 1], 8000));
+    let args = argh::from_env::<Args>();
+
+    let parallelism = available_parallelism().unwrap().get();
+    let mut yabuserver_connections = Vec::with_capacity(parallelism);
+
+    for _ in 0..parallelism {
+        yabuserver_connections.push(ClientConnection::new(&args.server_url).await.unwrap());
+    }
+
+    let connection_pool = unmanaged::Pool::from(yabuserver_connections);
 
     let static_files = get_service(ServeDir::new(STATIC_DIR)).handle_error(|err| async move {
         eprintln!("error while serving a static file: {err}");
@@ -115,13 +152,14 @@ async fn main() {
     let app = Router::new()
         .route("/", get(index))
         .nest("/static", static_files)
-        .layer(Extension(Arc::clone(&tera)));
+        .layer(Extension(Arc::clone(&tera)))
+        .layer(Extension(connection_pool));
 
     if cfg!(debug_assertions) {
         task::spawn(tera_watcher(tera, TEMPLATE_DIR));
     }
 
-    Server::bind(&addr)
+    Server::bind(&SocketAddr::from((args.listen_address, args.port)))
         .serve(app.into_make_service())
         .await
         .unwrap();
