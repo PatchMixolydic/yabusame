@@ -1,8 +1,11 @@
-#![feature(derive_default_enum)]
+#![feature(derive_default_enum, let_chains)]
+
+pub mod connection;
 
 use num_derive::{FromPrimitive, ToPrimitive};
 use serde::{Deserialize, Serialize};
 use serde_json::Error as SerdeJsonError;
+use url::Url;
 use std::{
     borrow::Cow,
     fmt::{self, Display, Formatter},
@@ -32,6 +35,10 @@ pub enum YabuError {
     IoError(#[from] IoError),
     #[error("error while serializing a value")]
     SerializationError(#[from] SerdeJsonError),
+    #[error("server url ({0}) does not have a host")]
+    UrlHasNoHost(Url),
+    #[error("dns lookup for `{0}` returned no addresses")]
+    DnsLookupFailed(Url),
 }
 
 #[derive(Clone, Debug, Deserialize, Error, Serialize)]

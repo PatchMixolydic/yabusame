@@ -8,7 +8,7 @@ pub fn offset_date_time_from_str(s: &str) -> Result<OffsetDateTime, String> {
     // handle this instead
 
     let result: anyhow::Result<_> = try {
-        // TODO: `time`'s parsing is truly arcane; doing this manually be
+        // TODO: `time`'s parsing is truly arcane; doing this manually would be
         // more flexible
         let date_fmt = format_description::parse("[year]-[month]-[day]")?;
         let time_fmt =
