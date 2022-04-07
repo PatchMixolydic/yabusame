@@ -8,8 +8,7 @@ mod datetime;
 use args::Subcommand;
 use comfy_table::{presets::NOTHING, Attribute, Cell, CellAlignment, Color, Table};
 use std::borrow::Cow;
-use time::format_description;
-use yabusame::{connection::ClientConnection, Delta, Message, Priority, Response, Task, TaskDelta};
+use yabusame::{connection::ClientConnection, Delta, Message, Priority, Response, Task, TaskDelta, format_date_time};
 
 use crate::args::Args;
 
@@ -74,25 +73,23 @@ async fn main() -> anyhow::Result<()> {
                 .unwrap()
                 .set_cell_alignment(CellAlignment::Center);
 
-            let date_time_format = format_description::parse(
-                "[year]-[month]-[day] [hour padding:none repr:12]:[minute][period case:lower]",
-            )?;
-
             for task in tasks {
                 let completed = if task.complete { "X" } else { " " };
 
-                let priority = match task.priority {
-                    Priority::Lowest => Cell::new("lowest"),
-                    Priority::Low => Cell::new("low").fg(Color::Blue),
-                    Priority::Medium => Cell::new("medium").fg(Color::DarkMagenta),
-                    Priority::High => Cell::new("high").fg(Color::Yellow),
-                    Priority::Critical => Cell::new("critical")
-                        .fg(Color::Red)
-                        .add_attribute(Attribute::Bold),
-                };
+                let mut priority = Cell::new(task.priority.as_str());
+
+                match task.priority {
+                    Priority::Lowest => {}
+                    Priority::Low => priority = priority.fg(Color::Blue),
+                    Priority::Medium => priority = priority.fg(Color::DarkMagenta),
+                    Priority::High => priority = priority.fg(Color::Yellow),
+                    Priority::Critical => {
+                        priority = priority.fg(Color::Red).add_attribute(Attribute::Bold);
+                    }
+                }
 
                 let due_date: Cow<'static, str> = match task.due_date {
-                    Some(due_date) => due_date.format(&date_time_format)?.into(),
+                    Some(due_date) => format_date_time(&due_date).into(),
                     None => "".into(),
                 };
 

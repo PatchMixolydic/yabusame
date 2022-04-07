@@ -3,23 +3,67 @@
 {% block title %}Index{% endblock %}
 
 {% block content %}
-  <div class="container">
+  <div class="outer-container"><div class="inner-container">
     <h1>Yabusame</h1>
 
-    <ol>
-      {% for task in tasks %}
-        {% let value %}
-        {% match task.id %}
-          {% when Some with (id) %}
-            {% let value = "value='{{ id }}'" %}
-          {% else %}
-            {% let value = "" %}
-        {% endmatch %}
+    <form method="POST">
+      <table>
+        <thead>
+          <tr>
+            <th>Task ID</th>
+            <th>Complete</th>
+            <th>Description</th>
+            <th>Priority</th>
+            <th>Due date</th>
+            <th>Delete</th>
+          </tr>
+        </thead>
+        {% for task in tasks %}
+          {% let task_id %}
+          {% match task.id %}
+            {% when Some with (id) %}
+              {% let task_id = id.to_string() %}
+            {% else %}
+              {% let task_id = "?".to_string() %}
+          {% endmatch %}
 
-        <li {{ value }}>
-          {{ task.description }}
-        </li>
-      {% endfor %}
-    </ol>
-  </div>
+          <tr {% if task.complete %} class="completed" {% endif %}>
+            <td>{{ task_id }}</td>
+            <td>
+              <input type="checkbox"
+                {% if task.complete %}
+                  checked
+                {% endif %}
+
+                {% if task_id != "?" %}
+                  name="task_{{task_id}}_complete"
+                  aria-label="Task {{ task_id }} complete"
+                {% endif %}
+              >
+            </td>
+            <td>{{ task.description }}</td>
+            <td>{{ task.priority }}</td>
+            <td>
+              {% match task.due_date %}
+                {% when Some with (due_date) %}
+                  {{ format_date_time(due_date) }}
+                {% else %}
+                  -
+              {% endmatch %}
+            </td>
+            <td>
+              <input type="checkbox"
+                {% if task_id != "?" %}
+                  name="delete_task_{{task_id}}"
+                  aria-label="Delete task {{ task_id }}"
+                {% endif %}
+              >
+            </td>
+          </tr>
+        {% endfor %}
+      </table>
+
+      <input type="submit" value="Update">
+    </form>
+  </div></div>
 {% endblock %}

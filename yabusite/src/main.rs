@@ -10,16 +10,19 @@ use axum::{
     Router, Server,
 };
 use std::net::SocketAddr;
+use time::OffsetDateTime;
 use url::Url;
 use yabusame::{
     connection::{default_server, url_from_str, ClientConnection},
-    Message, Task,
+    format_date_time, Message, Task,
 };
 
 #[derive(Template)]
 #[template(path = "index.html")]
 struct IndexTemplate {
     tasks: Vec<Task>,
+    // TODO: hack to access this function in the template
+    format_date_time: fn(&OffsetDateTime) -> String,
 }
 
 async fn index() -> Result<IndexTemplate, StatusCode> {
@@ -38,7 +41,10 @@ async fn index() -> Result<IndexTemplate, StatusCode> {
             yabusame::Response::Nothing => Err(anyhow!("got `Response::Nothing` from the server"))?,
         };
 
-        IndexTemplate { tasks }
+        IndexTemplate {
+            tasks,
+            format_date_time,
+        }
     };
 
     result.map_err(|err| {

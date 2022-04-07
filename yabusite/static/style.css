@@ -1,24 +1,48 @@
 * {
-    box-sizing: border-box;
+  box-sizing: border-box;
 }
 
 body {
-    font-family: sans-serif;
+  font-family: sans-serif;
 }
 
 body, html {
-    height: 100vh;
-    margin: 0;
+  height: 100vh;
+  margin: 0;
+  background-color: black;
+  background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAHAAAABwCAMAAADxPgR5AAABO1BMVEUAAAAAAQAAAgAAAwAABQAACAAACQAACgAADAAAEAAAEgAAEwAAGQAAGwAAIQAAIgAAIwAAJAAAJwAAKgAALAAALgAALwAAMAAAMQAANQAANgAAOAAAPwAAQAAAQgAAQwAARAAARwAASAAASgAASwAATAAATgAAUAAAUQAAVAAAVgAAWAAAWQAAWgAAXAAAXQAAYAAAYQAAYwAAZwAAaAAAaQAAawAAbgAAbwAAcAAAcgAAdAAAdwAAeAAAewAAfAAAfwAAgQAAggAAhAAAiwAAjAAAkgAAkwAAlAAAmQAApAAAqQAAugAAuwAAvAAAvgAAwwAAxAAAxgAAzAAAzQAAzgAA0QAA0gAA0wAA1AAA1gAA1wAA2QAA2wAA3wAA4AAA4gAA4wAA5AAA5QAA5gAA5wAA6QAA6gAA6wB03D73AAABaklEQVRo3u3Yd0/CQBgG8FOkalFxW1exdU9QcNa9RxERHDhKewX1+38CoaSJmhCN4c60Ps9/TS/5pc1d0/ch50fbG2vso+2fXjy+FY0MOVydHVWVj1HVz9dVoqo/XFhaqigTsa3jbNE2skSb7O/sYJ9uObabptS4IYuDrU0C+4hd4+spyyqBC31ioI59hHAkkTQdsFcMEPYR2iIJHaDnwcqmifoY1PGEngaDALFpfn8OuX68KUCAAL+eQ7xSL4NB/qDsc1DgD+Lge/9Y/AmIkRsgQPQ06GkwcqOnQU+DngYgQIxreKUA/Q/K/wBET4OeBiM3QIAohjCQAgToFTDHGzQ5/yaalDNIKYlKoYZ69mlsH1lOW2UwPhQONbNPizSl5WgZ3JkblnrYZ2AsfvDsgCebSzPT7DO/sndWAe+vU3rtkqx24/Iq81BwwBcrb3BI3rQdj5LXgk15xFWIbfGJC5O7GuT2+yVPLvgOJDMdPZPaa0kAAAAASUVORK5CYII=");
 }
 
-.container {
-    align-items: center;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    height: 100vh;
+.completed td {
+  text-decoration: line-through;
 }
 
 h1 {
-    text-align: center;
+  font-family: 'Connecting Chain Handserif', 'DFPPOPCorn-W12', sans-serif;
+  font-size: 2.5rem;
+  text-align: center;
+}
+
+.inner-container {
+  background-color: white;
+  border-radius: 4px;
+  box-shadow: 0 1px 16px black;
+  padding: 1rem;
+}
+
+.inner-container, .outer-container {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.outer-container {
+  background-color: rgba(0, 0, 0, 0.75);
+  height: 100vh;
+  padding: 1rem;
+}
+
+table {
+  border-spacing: 1.5rem 0.25rem;
 }

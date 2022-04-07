@@ -1,22 +1,26 @@
-#![feature(derive_default_enum, let_chains)]
+#![feature(derive_default_enum, let_chains, once_cell)]
 
 pub mod connection;
 
 use num_derive::{FromPrimitive, ToPrimitive};
 use serde::{Deserialize, Serialize};
 use serde_json::Error as SerdeJsonError;
-use url::Url;
 use std::{
     borrow::Cow,
     fmt::{self, Display, Formatter},
     io::Error as IoError,
+    lazy::SyncLazy,
     mem,
     num::{NonZeroU32, ParseIntError, TryFromIntError},
     str::FromStr,
 };
 use thiserror::Error;
-use time::OffsetDateTime;
+use time::{
+    format_description::{self, FormatItem},
+    OffsetDateTime,
+};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use url::Url;
 
 pub const DEFAULT_SERVER_PORT: u16 = 11180;
 pub const URL_SCHEME: &str = "yabu";
@@ -85,6 +89,24 @@ pub enum Priority {
     Medium,
     High,
     Critical,
+}
+
+impl Priority {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Priority::Lowest => "lowest",
+            Priority::Low => "low",
+            Priority::Medium => "medium",
+            Priority::High => "high",
+            Priority::Critical => "critical",
+        }
+    }
+}
+
+impl Display for Priority {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), fmt::Error> {
+        self.as_str().fmt(f)
+    }
 }
 
 impl FromStr for Priority {
@@ -246,4 +268,17 @@ impl Response {
         socket.write_all(&buffer).await?;
         Ok(())
     }
+}
+
+pub fn format_date_time(date_time: &OffsetDateTime) -> String {
+    static DATE_TIME_FORMAT: SyncLazy<Vec<FormatItem>> = SyncLazy::new(|| {
+        format_description::parse(
+            "[year]-[month]-[day] [hour padding:none repr:12]:[minute][period case:lower]",
+        )
+        .expect("`yabusame` author tried to use an invalid datetime format")
+    });
+
+    // I'm pretty sure I can't expect any consumers to handle these errors?
+    // idk i'm tired
+    date_time.format(&DATE_TIME_FORMAT).unwrap()
 }
