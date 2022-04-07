@@ -121,7 +121,9 @@ async fn main() {
         .nest("/static", static_files)
         .layer(Extension(Arc::clone(&tera)));
 
-    task::spawn(tera_watcher(tera, TEMPLATE_DIR));
+    if cfg!(debug_assertions) {
+        task::spawn(tera_watcher(tera, TEMPLATE_DIR));
+    }
 
     Server::bind(&addr)
         .serve(app.into_make_service())
