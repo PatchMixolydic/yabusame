@@ -64,7 +64,7 @@ synced_template_consts! {
 }
 
 #[derive(Serialize)]
-struct IndexTemplate {
+struct IndexContext {
     tasks: Vec<Task>,
 }
 
@@ -86,7 +86,7 @@ async fn index(
             yabusame::Response::Nothing => Err(anyhow!("got `Response::Nothing` from the server"))?,
         };
 
-        axum_render(&tera, "index.html", IndexTemplate { tasks }).await?
+        axum_render(&tera, "index.html", IndexContext { tasks }).await?
     };
 
     result.map_err(|err| {
