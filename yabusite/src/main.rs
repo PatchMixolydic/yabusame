@@ -1,33 +1,26 @@
 #![feature(try_blocks)]
 
+mod routes;
 mod tera_helpers;
 
-use anyhow::anyhow;
 use argh::FromArgs;
 use axum::{
     extract::Extension,
     http::StatusCode,
-    response::Html,
     routing::{get, get_service},
     Router, Server,
 };
-use axum_macros::debug_handler;
 use deadpool::unmanaged;
-use serde::Serialize;
 use std::{
     net::{IpAddr, SocketAddr},
     sync::Arc,
     thread::available_parallelism,
 };
 use tera::Tera;
-use tera_helpers::axum_render;
 use tokio::{sync::RwLock, task};
 use tower_http::services::ServeDir;
 use url::Url;
-use yabusame::{
-    connection::{default_server, url_from_str, ClientConnection},
-    Message, Task,
-};
+use yabusame::connection::{default_server, url_from_str, ClientConnection};
 
 use crate::tera_helpers::{date_time, tera_watcher};
 
@@ -61,42 +54,6 @@ synced_template_consts! {
     const {TEMPLATE_DIR, TEMPLATE_GLOB}: &str = "yabusite/templates";
     #[cfg(not(debug_assertions))]
     const {TEMPLATE_DIR, TEMPLATE_GLOB}: &str = "templates";
-}
-
-#[derive(Serialize)]
-struct IndexContext {
-    tasks: Vec<Task>,
-}
-
-#[debug_handler]
-async fn index(
-    tera: Extension<Arc<RwLock<Tera>>>,
-    connection_pool: Extension<unmanaged::Pool<ClientConnection>>,
-) -> Result<Html<String>, StatusCode> {
-    // TODO: hack? need to manually intervene to swap
-    // `anyhow::Error` for `StatusCode::INTERNAL_SERVER_ERROR`
-    let result: anyhow::Result<Html<String>> = try {
-        // TODO: should be a connection pool instead
-        let mut connection = connection_pool.get().await?;
-
-        let tasks = match connection.send(Message::List).await? {
-            // `yabusame::Response` is qualified to avoid confusion with `http::Response`
-            yabusame::Response::Tasks(tasks) => tasks,
-            yabusame::Response::Error(err) => Err(err)?,
-            yabusame::Response::Nothing => Err(anyhow!("got `Response::Nothing` from the server"))?,
-        };
-
-        axum_render(&tera, "index.html", IndexContext { tasks }).await?
-    };
-
-    result.map_err(|err| {
-        eprintln!("error while rendering index.html:");
-        for err in err.chain() {
-            eprintln!("    {err}");
-        }
-
-        StatusCode::INTERNAL_SERVER_ERROR
-    })
 }
 
 /// Web client for the Yabusame todo list.
@@ -150,7 +107,7 @@ async fn main() {
     tera.write().await.register_filter("date_time", date_time);
 
     let app = Router::new()
-        .route("/", get(index))
+        .route("/", get(routes::index))
         .nest("/static", static_files)
         .layer(Extension(Arc::clone(&tera)))
         .layer(Extension(connection_pool));
