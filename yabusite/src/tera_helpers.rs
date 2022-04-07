@@ -1,13 +1,26 @@
+use axum::response::Html;
 use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
+use serde::Serialize;
 use serde_json::{to_value, Value};
 use std::{collections::HashMap, path::Path, sync::Arc};
-use tera::Tera;
+use tera::{Context, Tera};
 use time::OffsetDateTime;
 use tokio::sync::{
     mpsc::{channel, Receiver},
     RwLock,
 };
 use yabusame::DATE_TIME_FORMAT;
+
+pub(crate) async fn axum_render<C: Serialize>(
+    tera: &RwLock<Tera>,
+    template_name: &str,
+    context: C,
+) -> anyhow::Result<Html<String>> {
+    Ok(Html(tera.read().await.render(
+        template_name,
+        &Context::from_serialize(context)?,
+    )?))
+}
 
 fn async_watcher() -> notify::Result<(RecommendedWatcher, Receiver<notify::Result<Event>>)> {
     let (tx, rx) = channel(1);

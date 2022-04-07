@@ -14,7 +14,8 @@ use axum::{
 use axum_macros::debug_handler;
 use serde::Serialize;
 use std::{net::SocketAddr, sync::Arc};
-use tera::{Context, Tera};
+use tera::Tera;
+use tera_helpers::axum_render;
 use tokio::{sync::RwLock, task};
 use tower_http::services::ServeDir;
 use url::Url;
@@ -77,12 +78,7 @@ async fn index(tera: Extension<Arc<RwLock<Tera>>>) -> Result<Html<String>, Statu
             yabusame::Response::Nothing => Err(anyhow!("got `Response::Nothing` from the server"))?,
         };
 
-        let result = tera.read().await.render(
-            "index.html",
-            &Context::from_serialize(IndexTemplate { tasks })?,
-        ).unwrap();
-
-        Html(result)
+        axum_render(&tera, "index.html", IndexTemplate { tasks }).await?
     };
 
     result.map_err(|err| {
