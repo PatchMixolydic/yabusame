@@ -17,13 +17,13 @@ fn delta_from_str<T: FromArgValue>(s: &str) -> Result<Delta<T>, String> {
     }
 }
 
-/// Foo;
+/// Terminal client for the Yabusame todo list.
 #[derive(Debug, FromArgs)]
 pub struct Args {
     #[argh(
         option,
         short = 's',
-        description = "server where ",
+        description = "URL that points to an instance of `yabuserver`",
         default = "default_server()",
         from_str_fn(url_from_str)
     )]

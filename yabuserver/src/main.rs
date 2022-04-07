@@ -9,7 +9,7 @@ use std::{net::IpAddr, io};
 use tokio::net::{TcpListener, TcpStream};
 use yabusame::{Message, Response, DEFAULT_SERVER_PORT, YabuError};
 
-/// Foo;
+/// The server behind the Yabusame todo list.
 #[derive(FromArgs)]
 struct Args {
     #[argh(
