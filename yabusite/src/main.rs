@@ -4,17 +4,23 @@ use anyhow::anyhow;
 use argh::FromArgs;
 use askama_axum::Template;
 use axum::{
-    http::{header::CONTENT_TYPE, HeaderMap, HeaderValue, StatusCode},
-    response::IntoResponse,
-    routing::get,
+    http::StatusCode,
+    routing::{get, get_service},
     Router, Server,
 };
 use std::net::SocketAddr;
 use time::OffsetDateTime;
+use tower_http::services::ServeDir;
 use url::Url;
 use yabusame::{
     connection::{default_server, url_from_str, ClientConnection},
     format_date_time, Message, Task,
+};
+
+const STATIC_DIR: &'static str = if cfg!(debug_assertions) {
+    "yabusite/static"
+} else {
+    "static"
 };
 
 #[derive(Template)]
@@ -53,12 +59,6 @@ async fn index() -> Result<IndexTemplate, StatusCode> {
     })
 }
 
-async fn style_css() -> impl IntoResponse {
-    let mut headers = HeaderMap::new();
-    headers.insert(CONTENT_TYPE, HeaderValue::from_static("text/css"));
-    (headers, include_str!("../static/style.css"))
-}
-
 /// Web client for the Yabusame todo list.
 #[derive(Debug, FromArgs)]
 pub struct Args {
@@ -76,9 +76,14 @@ pub struct Args {
 async fn main() {
     let addr = SocketAddr::from(([127, 0, 0, 1], 8000));
 
+    let static_files = get_service(ServeDir::new(STATIC_DIR)).handle_error(|err| async move {
+        eprintln!("error while serving a static file: {err}");
+        StatusCode::NOT_FOUND
+    });
+
     let app = Router::new()
         .route("/", get(index))
-        .route("/style.css", get(style_css));
+        .nest("/static", static_files);
 
     Server::bind(&addr)
         .serve(app.into_make_service())
