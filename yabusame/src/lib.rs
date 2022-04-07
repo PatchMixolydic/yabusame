@@ -276,9 +276,3 @@ impl Response {
         Ok(())
     }
 }
-
-pub fn format_date_time(date_time: &OffsetDateTime) -> String {
-    // I'm pretty sure I can't expect any consumers to handle these errors?
-    // idk i'm tired
-    date_time.format(&DATE_TIME_FORMAT).unwrap()
-}

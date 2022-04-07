@@ -8,7 +8,10 @@ mod datetime;
 use args::Subcommand;
 use comfy_table::{presets::NOTHING, Attribute, Cell, CellAlignment, Color, Table};
 use std::borrow::Cow;
-use yabusame::{connection::ClientConnection, Delta, Message, Priority, Response, Task, TaskDelta, format_date_time};
+use yabusame::{
+    connection::ClientConnection, Delta, Message, Priority, Response, Task, TaskDelta,
+    DATE_TIME_FORMAT,
+};
 
 use crate::args::Args;
 
@@ -89,7 +92,7 @@ async fn main() -> anyhow::Result<()> {
                 }
 
                 let due_date: Cow<'static, str> = match task.due_date {
-                    Some(due_date) => format_date_time(&due_date).into(),
+                    Some(due_date) => due_date.format(&DATE_TIME_FORMAT).unwrap().into(),
                     None => "".into(),
                 };
 

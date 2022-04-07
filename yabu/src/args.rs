@@ -2,8 +2,10 @@ use argh::{FromArgValue, FromArgs};
 use std::fmt::Debug;
 use time::OffsetDateTime;
 use url::Url;
-use yabusame::connection::{default_server, url_from_str};
-use yabusame::{Delta, Priority, TaskId};
+use yabusame::{
+    connection::{default_server, url_from_str},
+    Delta, Priority, TaskId,
+};
 
 use crate::datetime::{delta_time_from_str, offset_date_time_from_str};
 

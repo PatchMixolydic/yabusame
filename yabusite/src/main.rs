@@ -27,7 +27,7 @@ use crate::tera_helpers::{date_time, tera_watcher};
 
 // The working directory is the workspace root in debug mode and
 // the executable directory in release mode
-const STATIC_DIR: &'static str = if cfg!(debug_assertions) {
+const STATIC_DIR: &str = if cfg!(debug_assertions) {
     "yabusite/static"
 } else {
     "static"
@@ -37,22 +37,22 @@ const STATIC_DIR: &'static str = if cfg!(debug_assertions) {
 macro_rules! synced_template_consts {
     ($(
         $(#[$m:meta])*
-        const {$dir:ident, $glob:ident}: &'static str = $s:literal;
+        const {$dir:ident, $glob:ident}: &str = $s:literal;
     )*) => {
         $(
             $(#[$m])*
-            const $dir: &'static str = $s;
+            const $dir: &str = $s;
             $(#[$m])*
-            const $glob: &'static str = concat!($s, "/**/*");
+            const $glob: &str = concat!($s, "/**/*");
         )*
     };
 }
 
 synced_template_consts! {
     #[cfg(debug_assertions)]
-    const {TEMPLATE_DIR, TEMPLATE_GLOB}: &'static str = "yabusite/templates";
+    const {TEMPLATE_DIR, TEMPLATE_GLOB}: &str = "yabusite/templates";
     #[cfg(not(debug_assertions))]
-    const {TEMPLATE_DIR, TEMPLATE_GLOB}: &'static str = "templates";
+    const {TEMPLATE_DIR, TEMPLATE_GLOB}: &str = "templates";
 }
 
 #[derive(Serialize)]
