@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block title %}Index{% endblock %}
+
+{% block content %}
+  <div class="container">
+    <h1>Yabusame</h1>
+
+    <ol>
+      {% for task in tasks %}
+        {% let value %}
+        {% match task.id %}
+          {% when Some with (id) %}
+            {% let value = "value='{{ id }}'" %}
+          {% else %}
+            {% let value = "" %}
+        {% endmatch %}
+
+        <li {{ value }}>
+          {{ task.description }}
+        </li>
+      {% endfor %}
+    </ol>
+  </div>
+{% endblock %}
