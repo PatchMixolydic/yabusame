@@ -3,7 +3,7 @@
 }
 
 body {
-  font-family: sans-serif;
+  font-family: "Segoe UI", sans-serif;
 }
 
 body, html {
@@ -36,6 +36,40 @@ h1 {
   display: flex;
   flex-direction: column;
   justify-content: center;
+}
+
+input[type="submit"] {
+  background: linear-gradient(180deg, #F2F2F2 0%, #EBEBEB 49%, #DDDDDD 50%, #CFCFCF 100%);
+  border: 1px solid #FBFBFB;
+  border-radius: 2px;
+  box-shadow: 0 1px 2px black;
+  display: block;
+  font-family: 'Segoe UI';
+  font-size: 1.1rem;
+  margin: 0.75rem auto 0 auto;
+  outline: 1px solid #707070;
+  padding: 0.25rem 0.5rem;
+}
+
+input[type="submit"]:focus {
+  border: 1px solid #34D5FE;
+}
+
+input[type="submit"]:focus, input[type="submit"]:hover {
+  background: linear-gradient(180deg, #EAF6FD 0%, #D9F0FC 49%, #BEE6FD 50%, #A7D9F5 100%);
+  outline: 1px solid #3C7FB1;
+}
+
+input[type="submit"]:hover {
+  border: 1px solid #F9FCFE;
+}
+
+/* allegedly has to come after `:hover` to work */
+input[type="submit"]:active {
+  background: linear-gradient(180deg, #E4F3FB 0%, #C4E5F6 49%, #98D1EF 50%, #6DB6DD 100%);
+  border: 1px solid #97AAB4;
+  box-shadow: none;
+  outline: 1px solid #2C628B;
 }
 
 .outer-container {
