@@ -1,40 +1,70 @@
 #![feature(try_blocks)]
 
+mod tera_helpers;
+
 use anyhow::anyhow;
 use argh::FromArgs;
-use askama_axum::Template;
 use axum::{
+    extract::Extension,
     http::StatusCode,
+    response::Html,
     routing::{get, get_service},
     Router, Server,
 };
-use std::net::SocketAddr;
-use time::OffsetDateTime;
+use axum_macros::debug_handler;
+use serde::Serialize;
+use std::{net::SocketAddr, sync::Arc};
+use tera::{Context, Tera};
+use tokio::{sync::RwLock, task};
 use tower_http::services::ServeDir;
 use url::Url;
 use yabusame::{
     connection::{default_server, url_from_str, ClientConnection},
-    format_date_time, Message, Task,
+    Message, Task,
 };
 
+use crate::tera_helpers::{date_time, tera_watcher};
+
+// The working directory is the workspace root in debug mode and
+// the executable directory in release mode
 const STATIC_DIR: &'static str = if cfg!(debug_assertions) {
     "yabusite/static"
 } else {
     "static"
 };
 
-#[derive(Template)]
-#[template(path = "index.html")]
-struct IndexTemplate {
-    tasks: Vec<Task>,
-    // TODO: hack to access this function in the template
-    format_date_time: fn(&OffsetDateTime) -> String,
+// TODO: hack; tera wants a glob but notify wants a directory
+macro_rules! synced_template_consts {
+    ($(
+        $(#[$m:meta])*
+        const {$dir:ident, $glob:ident}: &'static str = $s:literal;
+    )*) => {
+        $(
+            $(#[$m])*
+            const $dir: &'static str = $s;
+            $(#[$m])*
+            const $glob: &'static str = concat!($s, "/**/*");
+        )*
+    };
 }
 
-async fn index() -> Result<IndexTemplate, StatusCode> {
+synced_template_consts! {
+    #[cfg(debug_assertions)]
+    const {TEMPLATE_DIR, TEMPLATE_GLOB}: &'static str = "yabusite/templates";
+    #[cfg(not(debug_assertions))]
+    const {TEMPLATE_DIR, TEMPLATE_GLOB}: &'static str = "templates";
+}
+
+#[derive(Serialize)]
+struct IndexTemplate {
+    tasks: Vec<Task>,
+}
+
+#[debug_handler]
+async fn index(tera: Extension<Arc<RwLock<Tera>>>) -> Result<Html<String>, StatusCode> {
     // TODO: hack? need to manually intervene to swap
     // `anyhow::Error` for `StatusCode::INTERNAL_SERVER_ERROR`
-    let result: anyhow::Result<IndexTemplate> = try {
+    let result: anyhow::Result<Html<String>> = try {
         // TODO: should be a connection pool instead
         let mut connection = ClientConnection::new(&"yabu://127.0.0.1:11180".parse()?)
             .await
@@ -47,10 +77,12 @@ async fn index() -> Result<IndexTemplate, StatusCode> {
             yabusame::Response::Nothing => Err(anyhow!("got `Response::Nothing` from the server"))?,
         };
 
-        IndexTemplate {
-            tasks,
-            format_date_time,
-        }
+        let result = tera.read().await.render(
+            "index.html",
+            &Context::from_serialize(IndexTemplate { tasks })?,
+        ).unwrap();
+
+        Html(result)
     };
 
     result.map_err(|err| {
@@ -81,9 +113,15 @@ async fn main() {
         StatusCode::NOT_FOUND
     });
 
+    let tera = Arc::new(RwLock::new(Tera::new(TEMPLATE_GLOB).unwrap()));
+    tera.write().await.register_filter("date_time", date_time);
+
     let app = Router::new()
         .route("/", get(index))
-        .nest("/static", static_files);
+        .nest("/static", static_files)
+        .layer(Extension(Arc::clone(&tera)));
+
+    task::spawn(tera_watcher(tera, TEMPLATE_DIR));
 
     Server::bind(&addr)
         .serve(app.into_make_service())

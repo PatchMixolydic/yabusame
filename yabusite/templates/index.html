@@ -19,43 +19,41 @@
           </tr>
         </thead>
         {% for task in tasks %}
-          {% let task_id %}
-          {% match task.id %}
-            {% when Some with (id) %}
-              {% let task_id = id.to_string() %}
-            {% else %}
-              {% let task_id = "?".to_string() %}
-          {% endmatch %}
 
           <tr {% if task.complete %} class="completed" {% endif %}>
-            <td>{{ task_id }}</td>
+            <td>
+              {% if task.id %}
+                {{ task.id }}
+              {% else %}
+                ???
+              {% endif %}
+            </td>
             <td>
               <input type="checkbox"
                 {% if task.complete %}
                   checked
                 {% endif %}
 
-                {% if task_id != "?" %}
-                  name="task_{{task_id}}_complete"
-                  aria-label="Task {{ task_id }} complete"
+                {% if task.id %}
+                  name="task_{{task.id}}_complete"
+                  aria-label="Task {{ task.id }} complete"
                 {% endif %}
               >
             </td>
             <td>{{ task.description }}</td>
             <td>{{ task.priority }}</td>
             <td>
-              {% match task.due_date %}
-                {% when Some with (due_date) %}
-                  {{ format_date_time(due_date) }}
-                {% else %}
-                  -
-              {% endmatch %}
+              {% if task.due_date %}
+                {{ task.due_date | date_time }}
+              {% else %}
+                -
+              {% endif %}
             </td>
             <td>
               <input type="checkbox"
-                {% if task_id != "?" %}
-                  name="delete_task_{{task_id}}"
-                  aria-label="Delete task {{ task_id }}"
+                {% if task.id %}
+                  name="delete_task_{{task.id}}"
+                  aria-label="Delete task {{ task.id }}"
                 {% endif %}
               >
             </td>

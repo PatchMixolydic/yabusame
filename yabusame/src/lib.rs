@@ -25,6 +25,13 @@ use url::Url;
 pub const DEFAULT_SERVER_PORT: u16 = 11180;
 pub const URL_SCHEME: &str = "yabu";
 
+pub static DATE_TIME_FORMAT: SyncLazy<Vec<FormatItem>> = SyncLazy::new(|| {
+    format_description::parse(
+        "[year]-[month]-[day] [hour padding:none repr:12]:[minute][period case:lower]",
+    )
+    .expect("`yabusame` author tried to use an invalid datetime format")
+});
+
 #[derive(Debug, Error)]
 pub enum YabuError {
     #[error("task id cannot be 0")]
@@ -271,13 +278,6 @@ impl Response {
 }
 
 pub fn format_date_time(date_time: &OffsetDateTime) -> String {
-    static DATE_TIME_FORMAT: SyncLazy<Vec<FormatItem>> = SyncLazy::new(|| {
-        format_description::parse(
-            "[year]-[month]-[day] [hour padding:none repr:12]:[minute][period case:lower]",
-        )
-        .expect("`yabusame` author tried to use an invalid datetime format")
-    });
-
     // I'm pretty sure I can't expect any consumers to handle these errors?
     // idk i'm tired
     date_time.format(&DATE_TIME_FORMAT).unwrap()
